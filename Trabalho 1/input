@@ -1,0 +1,113 @@
+// teste 2
+// if ( a5 > beaba + _1 )
+/* expected output:
+
+258 if
+40 (
+256 a5
+62 >
+256 beaba
+43 +
+256 _1
+41 )
+
+*/ 
+
+// teste 3
+// if( $a >= 1e-5 )
+/* expected output:
+
+258 if
+40 (
+256 $a
+261 >=
+260 1e-5
+41 )
+
+*/
+
+// teste 4
+//  a$_$ = "Um texto";
+/* expected output:
+
+256 a$_$
+61 =
+265 "Um texto"
+59 ;
+
+*/
+
+
+// teste 5
+// _$ = "Uma String" + "outra\t string";
+/* expected output:
+
+256 _$
+61 =
+265 "Uma String"
+43 +
+265 "outra\t string"
+59 ;
+
+*/
+
+// teste 6
+//  a = "Um \"texto";
+/* expected output:
+
+256 a
+61 =
+265 "Um \"texto"
+59 ;
+
+*/
+
+// teste 7
+//  a = "Um ""texto \o/ //\\";
+/* expected output:
+
+256 a
+61 =
+265 "Um ""texto \o/ //\\"
+59 ;
+
+*/
+
+// teste 8
+//  a = 2; /* Um comentario */
+/* expected output:
+
+256 a
+61 =
+259 2
+59 ;
+266 /* Um comentario */
+
+*/
+
+// teste 9
+// a = 2; /* Um comentario */ // outro */
+/* expected output:
+
+256 a
+61 =
+259 2
+59 ;
+266 /* Um comentario */
+266 // outro */
+
+*/
+
+// teste 10
+Entrada: /* Texto
++ / * a
+*/
+
+Expected output:
+
+266 /* Texto
++ / * a
+*/
+
+
+*/
