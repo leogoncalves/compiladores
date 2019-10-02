@@ -160,6 +160,11 @@ void F(){
             casa ( tk_float ); 
             cout << lexema << " "; }
             break;
+        case '(':{ 
+            casa( '(' ); 
+            E();
+            casa( ')' ); }
+            break;
         case tk_string:{
             string lexema = yytext;
             casa ( tk_string ); 
