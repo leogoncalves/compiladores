@@ -10,6 +10,7 @@ extern "C" int yylex();
 using namespace std;
 
 int token;
+string lexema;
 
 void A();
 void E();
@@ -17,8 +18,8 @@ void E_LINHA();
 void T();
 void T_LINHA();
 void F();
-void V();
-void S();
+void G();
+void H();
 void casa(int);
 
 enum { tk_int = 256, tk_cte_int, tk_double, tk_char, tk_id, tk_float, tk_string, tk_print, tk_fun };
@@ -53,16 +54,16 @@ STRING      (\"(\\.|[^"\\])*\")+
 %%
 
 {WS}	 { }    
-{NUM}	 { return tk_cte_int; }
-{STRING} { return tk_string; } 
-{FLOAT}	 { return tk_float; }
-{PRINT}  { return tk_print; }
-{FUN}    { return tk_fun; }
-"char"   { return tk_char;}
-"int"    { return tk_int;}
-"double" { return tk_double;}
+{NUM}	 { lexema = yytext; return tk_cte_int; }
+{STRING} { lexema = yytext; return tk_string; } 
+{FLOAT}	 { lexema = yytext; return tk_float; }
+{PRINT}  { lexema = yytext; return tk_print; }
+{FUN}    { lexema = yytext; return tk_fun; }
+"char"   { lexema = yytext; return tk_char;}
+"int"    { lexema = yytext; return tk_int;}
+"double" { lexema = yytext; return tk_double;}
 
-{ID}	 { return tk_id; }
+{ID}	 { lexema = yytext; return tk_id; }
 
 .        { return yytext[0]; }
 
@@ -182,10 +183,10 @@ void F(){
 }
 
 
-void S() {
+void H() {
     switch(token) {
         case tk_id:
-            V();
+            G();
             break;
         case tk_print:
             P();
@@ -194,9 +195,9 @@ void S() {
 }
 
 
-void V() {
+void G() {
     A();
-    S();
+    H();
 }
 
 
@@ -214,7 +215,7 @@ void casa(int esperado) {
 int main() {
     
     while((token = next_token())){
-        S();
+        H();
     }
     return 0;
 }
