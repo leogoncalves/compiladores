@@ -22,7 +22,7 @@ void G();
 void H();
 void casa(int);
 
-enum { tk_int = 256, tk_cte_int, tk_double, tk_char, tk_id, tk_float, tk_string, tk_print, tk_fun };
+enum { tk_int = 256, tk_cte_int, tk_double, tk_char, tk_id, tk_float, tk_string, tk_print, tk_fun, tk_max, tk_dtos };
 
 map<int,string> nome_tokens = {
   { tk_int, "int" },
@@ -33,7 +33,9 @@ map<int,string> nome_tokens = {
   { tk_float, "floating point"},
   { tk_fun, "function"},
   { tk_string, "string" },
-  { tk_print, "print"}
+  { tk_print, "print"},
+  { tk_max, "max"},
+  { tk_dtos, "dtos"}
 };
 
 
@@ -62,7 +64,8 @@ STRING      (\"(\\.|[^"\\])*\")+
 "char"   { lexema = yytext; return tk_char;}
 "int"    { lexema = yytext; return tk_int;}
 "double" { lexema = yytext; return tk_double;}
-
+"max"	 { lexema = yytext; return tk_max; }
+"dtos"   { lexema = yytext; return tk_dtos; }
 {ID}	 { lexema = yytext; return tk_id; }
 
 .        { return yytext[0]; }
@@ -177,6 +180,17 @@ void F(){
             cout << lexema << " ";
         }
             break;
+        case tk_max:{
+            string lexema = yytext;
+            casa(tk_max);
+            E();
+            casa(',')
+            E();
+            casa(')')
+            cout << lexema << " #" << " ";
+        }
+            break;
+        
         default:
             break;
     }    
