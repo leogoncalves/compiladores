@@ -14,18 +14,16 @@ struct Atributos {
 
 #define YYSTYPE Atributos
 
-#define _GO_TO "#"
-#define _NEW_OBJECT "{}"
-#define _NEW_ARRAY "[]"
-#define _GET "@"
-#define _SET "="
-#define _JUMP_TRUE "?"
+#define GO_TO "#"
+#define GET "@"
+#define SET "="
+#define JUMP_TRUE "?"
 #define _LET "&"
-#define _GET_PROP "[@]"
-#define _SET_PROP "[=]"
-#define _CALL_FUNC "$"
-#define _POP "^"
-#define _HALT "."
+#define GET_PROP "[@]"
+#define SET_PROP "[=]"
+#define CALL_FUNC "$"
+#define POP "^"
+#define HALT "."
 
 void erro( string msg );
 void Print( string st );
@@ -118,7 +116,7 @@ void nonVariable(string variable) {
 void duplicateVariable(string variable) {
     int duplicates = VariableDeclaration.count(variable);
     if(duplicates) {
-        cerr << "Erro: a variável '" << variable << "' já foi declarada na linha " << VariableDeclaration[variable] << _HALT << endl;
+        cerr << "Erro: a variável '" << variable << "' já foi declarada na linha " << VariableDeclaration[variable] << HALT << endl;
         exit(1);
     } else {
         VariableDeclaration[variable] = line;
@@ -141,16 +139,20 @@ void CREATE_WHILE_LABELS(){
 %}
 
 %token NUM STR ID PRINT LET IF ELSE FOR WHILE EMPTY_ARRAY EMPTY_OBJECT
+%token EQUAL_TO NOT_EQUAL_TO NOT_EQUAL_VALUE_OR_TYPE EQUAL_VALUE_AND_TYPE 
+%token GREATER_THAN GREATER_THAN_OR_EQUAL LESS_THAN LESS_THAN_OR_EQUAL
+%token COMMENT
 
+%nonassoc GREATER_THAN '>' GREATER_THAN_OR_EQUAL LESS_THAN_OR_EQUAL
 %right '='
-%left  '>'
-%left  '<'
+%left '.'
 %left  '+' '-'
 %left  '*' '/'
+%left '%'
 
 %%
 
-Program : P { Print(solveAddresses($1.v)); Print(_HALT); }
+Program : P { Print(solveAddresses($1.v)); Print(HALT); }
         ;
 
 P : CMD ';' P    { $$.v = $1.v + $3.v;}
@@ -161,20 +163,20 @@ P : CMD ';' P    { $$.v = $1.v + $3.v;}
 
 CMD_IF  : IF COND_EXPRESSION IF_CLOSURE CMD_ELSE { 
             CREATE_IF_LABELS();
-            $$.v = $2.v + INI_IF + _JUMP_TRUE + END_IF + _GO_TO + (":" + INI_IF) + $3.v + (":" + END_IF) + $4.v; 
+            $$.v = $2.v + INI_IF + JUMP_TRUE + END_IF + GO_TO + (":" + INI_IF) + $3.v + (":" + END_IF) + $4.v; 
         }
         | IF COND_EXPRESSION CMD ';' P {
             CREATE_IF_LABELS();
-            $$.v = $2.v + INI_IF + '?' + END_IF + _GO_TO + (":" + INI_IF) + $3.v + (":" + END_IF) + $5.v;
+            $$.v = $2.v + INI_IF + JUMP_TRUE + END_IF + GO_TO + (":" + INI_IF) + $3.v + (":" + END_IF) + $5.v;
         }
         | IF COND_EXPRESSION CMD ';' {
             CREATE_IF_LABELS();
-            $$.v = $2.v + INI_IF + _JUMP_TRUE + END_IF + _GO_TO + (":" + INI_IF) + $3.v + (":" + END_IF);
+            $$.v = $2.v + INI_IF + JUMP_TRUE + END_IF + GO_TO + (":" + INI_IF) + $3.v + (":" + END_IF);
         }
         ;
 
-IF_CLOSURE : '{' P '}' { $$.v = $2.v + END_ELSE + _GO_TO; }
-           | CMD ';'   { $$.v = $1.v + END_ELSE + _GO_TO; }
+IF_CLOSURE : '{' P '}' { $$.v = $2.v + END_ELSE + GO_TO; }
+           | CMD ';'   { $$.v = $1.v + END_ELSE + GO_TO; }
            ;
 
 CMD_ELSE : ELSE CLOSURE   { $$.v = $2.v + (":" + END_ELSE); }
@@ -185,11 +187,11 @@ CMD_ELSE : ELSE CLOSURE   { $$.v = $2.v + (":" + END_ELSE); }
 
 CMD_WHILE : WHILE COND_EXPRESSION WHILE_CLOSURE P {
             CREATE_WHILE_LABELS();
-            $$.v = (":" + INI_WHILE) + $2.v + INI_WHILE_CLOSURE + _JUMP_TRUE + END_WHILE + _GO_TO + (":" + INI_WHILE_CLOSURE) + $3.v + INI_WHILE + _GO_TO + (":" + END_WHILE) + $4.v;
+            $$.v = (":" + INI_WHILE) + $2.v + INI_WHILE_CLOSURE + JUMP_TRUE + END_WHILE + GO_TO + (":" + INI_WHILE_CLOSURE) + $3.v + INI_WHILE + GO_TO + (":" + END_WHILE) + $4.v;
           }
           | WHILE COND_EXPRESSION WHILE_CLOSURE {
             CREATE_WHILE_LABELS();
-            $$.v = (":" + INI_WHILE) + $2.v + INI_WHILE_CLOSURE + _JUMP_TRUE + END_WHILE + _GO_TO + (":" + INI_WHILE_CLOSURE) + $3.v + INI_WHILE + _GO_TO + (":" + END_WHILE);
+            $$.v = (":" + INI_WHILE) + $2.v + INI_WHILE_CLOSURE + JUMP_TRUE + END_WHILE + GO_TO + (":" + INI_WHILE_CLOSURE) + $3.v + INI_WHILE + GO_TO + (":" + END_WHILE);
           }
           ;
 
@@ -197,7 +199,7 @@ WHILE_CLOSURE : '{' P '}' { $$.v = $2.v; }
               | CMD ';'   { $$.v = $1.v; }
               ;
 
-COND_EXPRESSION : '(' E '<' E ')'     { $$.v = $2.v + $4.v + "<";  }
+COND_EXPRESSION : '(' E GREATER_THAN E ')'     { $$.v = $2.v + $4.v + "<";  }
                 | '(' E '>' E ')'     { $$.v = $2.v + $4.v + ">";  }
                 | '(' E '=' '=' E ')' { $$.v = $2.v + $4.v + "=="; }
                 ;
@@ -205,7 +207,7 @@ COND_EXPRESSION : '(' E '<' E ')'     { $$.v = $2.v + $4.v + "<";  }
 CLOSURE : '{' P '}' { $$.v = $2.v; }
 
 CMD : CMD_LET { $$.v = $1.v; }
-    | ATRIB   { $$.v = $1.v + _POP; }
+    | ATRIB   { $$.v = $1.v + POP; }
     ;
 
 CMD_LET : LET ARGS  { $$.v = $2.v; }
@@ -216,39 +218,39 @@ ARGS : ATRIB_VALUE ',' ARGS { $$.v = $1.v + $3.v; }
      ;
 
 ATRIB_VALUE : ID       { duplicateVariable($1.v[0]); $$.v = $1.v + _LET ; }
-            | ID '=' E { duplicateVariable($1.v[0]); $$.v = $1.v + _LET + $1.v + $3.v + _SET + _POP; }
+            | ID '=' E { duplicateVariable($1.v[0]); $$.v = $1.v + _LET + $1.v + $3.v + SET + POP; }
             ;
 
-ATRIB : ID '=' ATRIB      { nonVariable($1.v[0]); $$.v = $1.v + $3.v + _SET; }
-      | ID '=' E          { nonVariable($1.v[0]); $$.v = $1.v + $3.v + _SET; }
-      | OBJECT '=' E      { $$.v = $1.v + $3.v + _SET_PROP; }
-      | OBJECT '=' ATRIB  { $$.v = $1.v + $3.v + _SET_PROP; }
+ATRIB : ID '=' ATRIB      { nonVariable($1.v[0]); $$.v = $1.v + $3.v + SET; }
+      | ID '=' E          { nonVariable($1.v[0]); $$.v = $1.v + $3.v + SET; }
+      | OBJECT '=' E      { $$.v = $1.v + $3.v + SET_PROP; }
+      | OBJECT '=' ATRIB  { $$.v = $1.v + $3.v + SET_PROP; }
       ;
 
-OBJECT : ID '.' ID              { $$.v = $1.v + _GET + $3.v; }
-       | ID '.' ID '[' E ']'    { $$.v = $1.v + _GET + $3.v + _GET_PROP + $5.v; }
-       | ID '[' E ']'           { $$.v = $1.v + _GET + $3.v; }
-       | ID '[' ATRIB ']'       { $$.v = $1.v + _GET + $3.v; }
-       | ID '[' E ']' '[' E ']' { $$.v = $1.v + _GET + $3.v + _GET_PROP + $6.v; }
+OBJECT : ID '.' ID              { $$.v = $1.v + GET + $3.v; }
+       | ID '.' ID '[' E ']'    { $$.v = $1.v + GET + $3.v + GET_PROP + $5.v; }
+       | ID '[' E ']'           { $$.v = $1.v + GET + $3.v; }
+       | ID '[' ATRIB ']'       { $$.v = $1.v + GET + $3.v; }
+       | ID '[' E ']' '[' E ']' { $$.v = $1.v + GET + $3.v + GET_PROP + $6.v; }
        ;
 
 E : E '+' E   { $$.v = $1.v + $3.v + "+"; }
   | E '-' E   { $$.v = $1.v + $3.v + "-"; }
   | E '*' E   { $$.v = $1.v + $3.v + "*"; }
   | E '/' E   { $$.v = $1.v + $3.v + "/"; }
-  | E '<' E   { $$.v = $1.v + $3.v + "<"; } 
+  | E GREATER_THAN E   { $$.v = $1.v + $3.v + "<"; } 
   | E '>' E   { $$.v = $1.v + $3.v + ">"; }
   | F
   ;
   
-F : ID                      { $$.v = $1.v +  _GET; }
+F : ID                      { $$.v = $1.v +  GET; }
   | '-' NUM                 { $$.v = "0" + $2.v + "-"; }
   | NUM                     { $$.v = $1.v; }
   | STR                     { $$.v = $1.v; }
-  | ID '.' ID               { $$.v = $1.v + _GET + $3.v + _GET_PROP; }
-  | ID '[' E ']' '[' E ']'  { $$.v = $1.v + _GET + $3.v + _GET_PROP + $6.v + _GET_PROP; }
+  | ID '.' ID               { $$.v = $1.v + GET + $3.v + GET_PROP; }
+  | ID '[' E ']' '[' E ']'  { $$.v = $1.v + GET + $3.v + GET_PROP + $6.v + GET_PROP; }
   | '(' E ')'               { $$.v = $2.v; }
-  | FUNCTION '(' PARAMS ')' { Print( $1.v + _GO_TO ); }
+  | FUNCTION '(' PARAMS ')' { Print( $1.v + GO_TO ); }
   | EMPTY_ARRAY
   | EMPTY_OBJECT
   ;

@@ -11,7 +11,9 @@ ID      {L}({L}|{D})*
 STR 	(\"([^\"\n]|(\\\")|\"\")+\"|\'([^\'\n]|(\\\')|\'\')+\')
 EMPTY_ARRAY \[\]
 EMPTY_OBJECT   \{\}
-
+SIMPLE_COMMENT \/\/[^\n\r\t]*
+COMPLEX_COMMENT (\/\*)(\*[^\/]|[^\*])*(\*\/) 
+COMMENT ({SIMPLE_COMMENT}|{COMPLEX_COMMENT})
 %%
 "\t"             { column += 4; }
 " "              { column++; }
@@ -25,7 +27,16 @@ EMPTY_OBJECT   \{\}
 {WHILE}          { return retorna( WHILE ); }
 {FOR}            { return retorna( FOR   ); }
 {ID}             { return retorna( ID ); }
+">" 	         { return retorna( GREATER_THAN ); }
+"<"	             { return retorna( LESS_THAN ); }
+">="	         { return retorna( GREATER_THAN_OR_EQUAL ); }
+"<="	         { return retorna( LESS_THAN_OR_EQUAL ); }
+"=="             { return retorna( EQUAL_TO ); }
+"==="            { return retorna( EQUAL_VALUE_AND_TYPE ); }
+"!="             { return retorna( NOT_EQUAL_TO ); }
+"!=="            { return retorna( NOT_EQUAL_VALUE_OR_TYPE ); }
 {EMPTY_ARRAY}    { return retorna( EMPTY_ARRAY );}
 {EMPTY_OBJECT}   { return retorna( EMPTY_OBJECT );}
+{COMMENT}        { return retorna( COMMENT ); } 
 .                { return retorna( *yytext ); }
 %%
