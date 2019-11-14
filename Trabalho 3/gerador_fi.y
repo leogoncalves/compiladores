@@ -14,35 +14,41 @@ struct Atributos {
 
 #define YYSTYPE Atributos
 
+#define _GO_TO "#"
+#define _NEW_OBJECT "{}"
+#define _NEW_ARRAY "[]"
+#define _GET "@"
+#define _SET "="
+#define _JUMP_TRUE "?"
+#define _LET "&"
+#define _GET_PROP "[@]"
+#define _SET_PROP "[=]"
+#define _CALL_FUNC "$"
+#define _POP "^"
+#define _HALT "."
+
 void erro( string msg );
 void Print( string st );
 void Print( vector<string> st );
 
 
-// protótipo para o analisador léxico (gerado pelo lex)
 int yylex();
 void yyerror( const char* );
 int retorna( int tk );
 
-int linha = 1;
-int coluna = 1;
+int line = 1;
+int column = 1;
 
-map<string,string> _INSTRUCTIONS = {
-  { "GO_TO" , "#" },
-  { "NEW_OBJECT" , "{}" },
-  { "NEW_ARRAY" , "[]" },
-  { "GET" , "@" },
-  { "SET" , "=" },
-  { "JUMP_TRUE" , "?" },
-  { "LET" , "&" },
-  { "GET_PROP" , "[@]" },
-  { "SET_PROP" , "[=]" },
-  { "CALL_FUNC" , "$" },
-  { "POP" , "^" },  
-  { "HALT" , "." },
-  { "INSTRUCTION_PREFIX" , "_" },
-  { "INSTRUCTION_SUFFIX" , ":" },
-};
+string INI_IF;
+string END_IF;
+string END_ELSE;
+
+string INI_WHILE;
+string INI_WHILE_CLOSURE;
+string END_WHILE;
+
+vector<string> Variables;
+map<string, int> VariableDeclaration;
 
 
 vector<string> concat(vector<string> a, vector<string> b) {
@@ -60,6 +66,10 @@ vector<string> operator +(vector<string> a, vector<string> b) {
 
 vector<string> operator +( vector<string> a, string b) {
     return concat( a, vector<string>{b} );
+}
+
+vector<string> operator +( string a, vector<string> b) {
+    return concat( vector<string>{a}, b );
 }
 
 vector<string> operator +( char a, vector<string> b) {
@@ -97,9 +107,40 @@ vector<string> solveAddresses(vector<string> input) {
     return res;
 }
 
+void nonVariable(string variable) {
+    int nonVariable = VariableDeclaration.count(variable); 
+    if(nonVariable == 0) {
+        cerr << "Erro: a variável '" << variable << "' não foi declarada." << endl;
+        exit(1);
+    }
+}
+
+void duplicateVariable(string variable) {
+    int duplicates = VariableDeclaration.count(variable);
+    if(duplicates) {
+        cerr << "Erro: a variável '" << variable << "' já foi declarada na linha " << VariableDeclaration[variable] << _HALT << endl;
+        exit(1);
+    } else {
+        VariableDeclaration[variable] = line;
+    }
+
+}
+
+void CREATE_IF_LABELS(){
+    INI_IF = createLabels("ini_if"); 
+    END_IF = createLabels("end_if"); 
+    END_ELSE = createLabels("end_else");
+}
+
+void CREATE_WHILE_LABELS(){
+    INI_WHILE = createLabels("ini_while");
+    INI_WHILE_CLOSURE = createLabels("ini_while_closure");
+    END_WHILE = createLabels("end_while");
+}
+
 %}
 
-%token NUM STR ID PRINT LET IF ELSE OBJECT ARRAY EQUALS
+%token NUM STR ID PRINT LET IF ELSE FOR WHILE EMPTY_ARRAY EMPTY_OBJECT
 
 %right '='
 %left  '>'
@@ -109,74 +150,123 @@ vector<string> solveAddresses(vector<string> input) {
 
 %%
 
-Program : P { Print(solveAddresses($1.v)); Print("."); }
+Program : P { Print(solveAddresses($1.v)); Print(_HALT); }
         ;
 
-P : CMD ';' P { $$.v = $$.v + $3.v; }
-  | CMD ';' 
+P : CMD ';' P    { $$.v = $1.v + $3.v;}
+  | CMD ';'
+  | CMD_IF       { $$.v = $1.v; }
+  | CMD_WHILE    { $$.v = $1.v; }
   ;
 
-CMD : LET ATRIB { $$.v = $2.v; }
-    | ATRIB { $$.v = $1.v; }
+CMD_IF  : IF COND_EXPRESSION IF_CLOSURE CMD_ELSE { 
+            CREATE_IF_LABELS();
+            $$.v = $2.v + INI_IF + _JUMP_TRUE + END_IF + _GO_TO + (":" + INI_IF) + $3.v + (":" + END_IF) + $4.v; 
+        }
+        | IF COND_EXPRESSION CMD ';' P {
+            CREATE_IF_LABELS();
+            $$.v = $2.v + INI_IF + '?' + END_IF + _GO_TO + (":" + INI_IF) + $3.v + (":" + END_IF) + $5.v;
+        }
+        | IF COND_EXPRESSION CMD ';' {
+            CREATE_IF_LABELS();
+            $$.v = $2.v + INI_IF + _JUMP_TRUE + END_IF + _GO_TO + (":" + INI_IF) + $3.v + (":" + END_IF);
+        }
+        ;
+
+IF_CLOSURE : '{' P '}' { $$.v = $2.v + END_ELSE + _GO_TO; }
+           | CMD ';'   { $$.v = $1.v + END_ELSE + _GO_TO; }
+           ;
+
+CMD_ELSE : ELSE CLOSURE   { $$.v = $2.v + (":" + END_ELSE); }
+         | ELSE CMD ';'   { $$.v = $2.v + (":" + END_ELSE); }
+         | ELSE CMD ';' P { $$.v = $2.v + (":" + END_ELSE) + $4.v; }
+         | ELSE CMD_IF    { $$.v = $2.v + (":" + END_ELSE); }
+         ;
+
+CMD_WHILE : WHILE COND_EXPRESSION WHILE_CLOSURE P {
+            CREATE_WHILE_LABELS();
+            $$.v = (":" + INI_WHILE) + $2.v + INI_WHILE_CLOSURE + _JUMP_TRUE + END_WHILE + _GO_TO + (":" + INI_WHILE_CLOSURE) + $3.v + INI_WHILE + _GO_TO + (":" + END_WHILE) + $4.v;
+          }
+          | WHILE COND_EXPRESSION WHILE_CLOSURE {
+            CREATE_WHILE_LABELS();
+            $$.v = (":" + INI_WHILE) + $2.v + INI_WHILE_CLOSURE + _JUMP_TRUE + END_WHILE + _GO_TO + (":" + INI_WHILE_CLOSURE) + $3.v + INI_WHILE + _GO_TO + (":" + END_WHILE);
+          }
+          ;
+
+WHILE_CLOSURE : '{' P '}' { $$.v = $2.v; }
+              | CMD ';'   { $$.v = $1.v; }
+              ;
+
+COND_EXPRESSION : '(' E '<' E ')'     { $$.v = $2.v + $4.v + "<";  }
+                | '(' E '>' E ')'     { $$.v = $2.v + $4.v + ">";  }
+                | '(' E '=' '=' E ')' { $$.v = $2.v + $4.v + "=="; }
+                ;
+
+CLOSURE : '{' P '}' { $$.v = $2.v; }
+
+CMD : CMD_LET { $$.v = $1.v; }
+    | ATRIB   { $$.v = $1.v + _POP; }
     ;
 
-D : ID { $$.v = $1.v + '&'; }
-  ;
+CMD_LET : LET ARGS  { $$.v = $2.v; }
+        ;
 
-ATRIB : ID '=' ARGS { $$.v = $1.v + '&' + $1.v + $3.v + '=' + '^'; }
-      | ID '=' ATRIB { $$.v = $1.v + '&' + $3.v; }
-      | D ',' ATRIB {$$.v = $1.v + $3.v;}
-      | D
+ARGS : ATRIB_VALUE ',' ARGS { $$.v = $1.v + $3.v; }
+     | ATRIB_VALUE          { $$.v = $1.v; }
+     ;
+
+ATRIB_VALUE : ID       { duplicateVariable($1.v[0]); $$.v = $1.v + _LET ; }
+            | ID '=' E { duplicateVariable($1.v[0]); $$.v = $1.v + _LET + $1.v + $3.v + _SET + _POP; }
+            ;
+
+ATRIB : ID '=' ATRIB      { nonVariable($1.v[0]); $$.v = $1.v + $3.v + _SET; }
+      | ID '=' E          { nonVariable($1.v[0]); $$.v = $1.v + $3.v + _SET; }
+      | OBJECT '=' E      { $$.v = $1.v + $3.v + _SET_PROP; }
+      | OBJECT '=' ATRIB  { $$.v = $1.v + $3.v + _SET_PROP; }
       ;
 
-ARGS : ARG ',' ATRIB { $$.v = $1.v + $3.v;}
-     ;
+OBJECT : ID '.' ID              { $$.v = $1.v + _GET + $3.v; }
+       | ID '.' ID '[' E ']'    { $$.v = $1.v + _GET + $3.v + _GET_PROP + $5.v; }
+       | ID '[' E ']'           { $$.v = $1.v + _GET + $3.v; }
+       | ID '[' ATRIB ']'       { $$.v = $1.v + _GET + $3.v; }
+       | ID '[' E ']' '[' E ']' { $$.v = $1.v + _GET + $3.v + _GET_PROP + $6.v; }
+       ;
 
-ARG : E { $$.v = $1.v; }
-    ;
-
-// E : E '+' E { $$.v = $1.v + $3.v + $2.v; }
-//   | E '-' E { $$.v = $1.v + $3.v + $2.v; }
-//   | E '*' E { $$.v = $1.v + $3.v + $2.v; }
-//   | E '/' E { $$.v = $1.v + $3.v + $2.v; }
-//   | E EQUALS E { $$.v = $1.v + $2.v + $3.v; }
-//   | E '<' E { $$.v = $1.v + $3.v + $2.v; }
-//   | E '>' E { $$.v = $1.v + $3.v + $2.v; }
-//   | F
-//   ;
-  
-E : E '+' E { $$.v = vector<string>{"+"}; }
-  | E '-' E { $$.v = vector<string>{"-"}; }
-  | E '*' E { $$.v = vector<string>{"*"}; }
-  | E '/' E { $$.v = vector<string>{"/"}; }
-  | E '<' E { $$.v = vector<string>{"<"}; }
-  | E '>' E { $$.v = vector<string>{">"}; }
+E : E '+' E   { $$.v = $1.v + $3.v + "+"; }
+  | E '-' E   { $$.v = $1.v + $3.v + "-"; }
+  | E '*' E   { $$.v = $1.v + $3.v + "*"; }
+  | E '/' E   { $$.v = $1.v + $3.v + "/"; }
+  | E '<' E   { $$.v = $1.v + $3.v + "<"; } 
+  | E '>' E   { $$.v = $1.v + $3.v + ">"; }
   | F
   ;
-
-F : ID { $$.v = $1.v + "@"; }
-  | NUM { $$.v = $1.v; }
-  | STR { $$.v = $1.v; }
-  | '(' E ')' 
-  | '{' '}' { { $$.v = vector<string>{"{}"}; } }
-  | '[' ']' { { $$.v = vector<string>{"[]"}; } }
-  | FUNC '(' PARAMS ')' { $$.v = $1.v + '#'; }
-  ;
   
-FUNC : ID
-     ;
+F : ID                      { $$.v = $1.v +  _GET; }
+  | '-' NUM                 { $$.v = "0" + $2.v + "-"; }
+  | NUM                     { $$.v = $1.v; }
+  | STR                     { $$.v = $1.v; }
+  | ID '.' ID               { $$.v = $1.v + _GET + $3.v + _GET_PROP; }
+  | ID '[' E ']' '[' E ']'  { $$.v = $1.v + _GET + $3.v + _GET_PROP + $6.v + _GET_PROP; }
+  | '(' E ')'               { $$.v = $2.v; }
+  | FUNCTION '(' PARAMS ')' { Print( $1.v + _GO_TO ); }
+  | EMPTY_ARRAY
+  | EMPTY_OBJECT
+  ;
 
-PARAMS : PARAM ',' PARAMS
+FUNCTION : ID
+         ;
+
+PARAMS : PARAMS ',' PARAMS
        | PARAM
-       ;
 
 PARAM : E
       ;
+
 %%
 
 #include "lex.yy.c"
 
-map<int,string> nome_tokens = {
+map<int,string> _TOKENS = {
   { PRINT, "print" },
   { STR, "string" },
   { ID, "nome de identificador" },
@@ -184,8 +274,8 @@ map<int,string> nome_tokens = {
 };
 
 string nome_token( int token ) {
-  if( nome_tokens.find( token ) != nome_tokens.end() )
-    return nome_tokens[token];
+  if( _TOKENS.find( token ) != _TOKENS.end() )
+    return _TOKENS[token];
   else {
     string r;
     
@@ -197,7 +287,7 @@ string nome_token( int token ) {
 int retorna( int tk ) {  
     vector<string> v{yytext};
     yylval.v = v; 
-    coluna += strlen( yytext ); 
+    column += strlen( yytext ); 
 
 
   return tk;
@@ -205,7 +295,7 @@ int retorna( int tk ) {
 
 void yyerror( const char* msg ) {
   cout << endl << "Erro: " << msg << endl
-       << "Perto de: '" << yylval.v.back() << "' na linha " << linha << " coluna " << coluna << endl;
+       << "Perto de: '" << yylval.v.back() << "' na linha " << line << " coluna " << column << endl;
   exit( 1 );
 }
 
@@ -222,7 +312,7 @@ void Print( vector<string> str ) {
 int main() {
   yyparse();
   
-  cout << endl;
+  cout <<  endl ;
    
   return 0;
 }
