@@ -5,12 +5,12 @@ LET     let
 PRINT   ([Pp][rint])
 IF      ([Ii][Ff])
 ELSE    ([Ee][Ll][Ss][Ee])
-WHILE   ([Ww][hile])
-FOR     ([Ff][Oo][r])
+WHILE   while
+FOR     for
 ID      {L}({L}|{D})*
 STR 	(\"([^\"\n]|(\\\")|\"\")+\"|\'([^\'\n]|(\\\')|\'\')+\')
-EMPTY_ARRAY \[\]
-EMPTY_OBJECT   \{\}
+NEW_ARRAY \[\]
+NEW_OBJECT   \{\}
 SIMPLE_COMMENT \/\/[^\n\r\t]*
 COMPLEX_COMMENT (\/\*)(\*[^\/]|[^\*])*(\*\/) 
 COMMENT ({SIMPLE_COMMENT}|{COMPLEX_COMMENT})
@@ -35,8 +35,8 @@ COMMENT ({SIMPLE_COMMENT}|{COMPLEX_COMMENT})
 "==="            { return retorna( EQUAL_VALUE_AND_TYPE ); }
 "!="             { return retorna( NOT_EQUAL_TO ); }
 "!=="            { return retorna( NOT_EQUAL_VALUE_OR_TYPE ); }
-{EMPTY_ARRAY}    { return retorna( EMPTY_ARRAY );}
-{EMPTY_OBJECT}   { return retorna( EMPTY_OBJECT );}
+{NEW_ARRAY}      { return retorna( NEW_ARRAY );}
+{NEW_OBJECT}     { return retorna( NEW_OBJECT );}
 {COMMENT}        { return retorna( COMMENT ); } 
 .                { return retorna( *yytext ); }
 %%

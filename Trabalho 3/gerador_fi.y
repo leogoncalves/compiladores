@@ -10,6 +10,7 @@ extern "C" int yylex();
 
 struct Atributos {
   vector<string> v;
+  vector<string> f;
 };
 
 #define YYSTYPE Atributos
@@ -44,6 +45,10 @@ string END_ELSE;
 string INI_WHILE;
 string INI_WHILE_CLOSURE;
 string END_WHILE;
+
+string FOR_CONDITION;
+string INI_FOR_CLOSURE;
+string END_FOR;
 
 vector<string> Variables;
 map<string, int> VariableDeclaration;
@@ -136,14 +141,21 @@ void CREATE_WHILE_LABELS(){
     END_WHILE = createLabels("end_while");
 }
 
+void CREATE_FOR_LABELS(){
+    FOR_CONDITION = createLabels("condition_for");
+    INI_FOR_CLOSURE = createLabels("ini_for_closure");
+    END_FOR = createLabels("end_for");
+}
+
 %}
 
-%token NUM STR ID PRINT LET IF ELSE FOR WHILE EMPTY_ARRAY EMPTY_OBJECT
+%token NUM STR ID PRINT LET IF ELSE FOR WHILE
+%token NEW_ARRAY NEW_OBJECT
 %token EQUAL_TO NOT_EQUAL_TO NOT_EQUAL_VALUE_OR_TYPE EQUAL_VALUE_AND_TYPE 
 %token GREATER_THAN GREATER_THAN_OR_EQUAL LESS_THAN LESS_THAN_OR_EQUAL
 %token COMMENT
 
-%nonassoc GREATER_THAN '>' GREATER_THAN_OR_EQUAL LESS_THAN_OR_EQUAL
+%nonassoc GREATER_THAN GREATER_THAN_OR_EQUAL LESS_THAN LESS_THAN_OR_EQUAL
 %right '='
 %left '.'
 %left  '+' '-'
@@ -158,18 +170,19 @@ Program : P { Print(solveAddresses($1.v)); Print(HALT); }
 P : CMD ';' P    { $$.v = $1.v + $3.v;}
   | CMD ';'
   | CMD_IF       { $$.v = $1.v; }
+  | CMD_FOR      { $$.v = $1.v; }
   | CMD_WHILE    { $$.v = $1.v; }
   ;
 
-CMD_IF  : IF COND_EXPRESSION IF_CLOSURE CMD_ELSE { 
+CMD_IF  : IF CONDITION IF_CLOSURE CMD_ELSE { 
             CREATE_IF_LABELS();
             $$.v = $2.v + INI_IF + JUMP_TRUE + END_IF + GO_TO + (":" + INI_IF) + $3.v + (":" + END_IF) + $4.v; 
         }
-        | IF COND_EXPRESSION CMD ';' P {
+        | IF CONDITION CMD ';' P {
             CREATE_IF_LABELS();
             $$.v = $2.v + INI_IF + JUMP_TRUE + END_IF + GO_TO + (":" + INI_IF) + $3.v + (":" + END_IF) + $5.v;
         }
-        | IF COND_EXPRESSION CMD ';' {
+        | IF CONDITION CMD ';' {
             CREATE_IF_LABELS();
             $$.v = $2.v + INI_IF + JUMP_TRUE + END_IF + GO_TO + (":" + INI_IF) + $3.v + (":" + END_IF);
         }
@@ -185,11 +198,25 @@ CMD_ELSE : ELSE CLOSURE   { $$.v = $2.v + (":" + END_ELSE); }
          | ELSE CMD_IF    { $$.v = $2.v + (":" + END_ELSE); }
          ;
 
-CMD_WHILE : WHILE COND_EXPRESSION WHILE_CLOSURE P {
+CMD_FOR : FOR '(' CMD ';' CONDITION_EXPRESSION ';' CMD ')' CLOSURE P {
+            string condition_for = createLabels("condition_for"), _condition_for = ':' + condition_for;
+            string begin_for_closure = createLabels("begin_for_closure"), _begin_for_closure = ':' + begin_for_closure;
+            string end_for = createLabels("end_for"), _end_for = ':' + end_for;
+            $$.v = $3.v + _condition_for + $5.v + begin_for_closure + JUMP_TRUE + end_for + GO_TO + _begin_for_closure + $9.v + $7.v + condition_for + GO_TO + _end_for + $10.v;
+        }
+        | FOR '(' CMD ';' CONDITION_EXPRESSION ';' CMD ')' CLOSURE {
+            string condition_for = createLabels("condition_for"), _condition_for = ':' + condition_for;
+            string begin_for_closure = createLabels("begin_for_closure"), _begin_for_closure = ':' + begin_for_closure;
+            string end_for = createLabels("end_for"), _end_for = ':' + end_for;
+            $$.v = $3.v + _condition_for + $5.v + begin_for_closure + JUMP_TRUE + end_for + GO_TO + _begin_for_closure + $9.v + $7.v + condition_for + GO_TO + _end_for;
+        }
+        ;
+
+CMD_WHILE : WHILE CONDITION WHILE_CLOSURE P {
             CREATE_WHILE_LABELS();
             $$.v = (":" + INI_WHILE) + $2.v + INI_WHILE_CLOSURE + JUMP_TRUE + END_WHILE + GO_TO + (":" + INI_WHILE_CLOSURE) + $3.v + INI_WHILE + GO_TO + (":" + END_WHILE) + $4.v;
           }
-          | WHILE COND_EXPRESSION WHILE_CLOSURE {
+          | WHILE CONDITION WHILE_CLOSURE {
             CREATE_WHILE_LABELS();
             $$.v = (":" + INI_WHILE) + $2.v + INI_WHILE_CLOSURE + JUMP_TRUE + END_WHILE + GO_TO + (":" + INI_WHILE_CLOSURE) + $3.v + INI_WHILE + GO_TO + (":" + END_WHILE);
           }
@@ -199,12 +226,18 @@ WHILE_CLOSURE : '{' P '}' { $$.v = $2.v; }
               | CMD ';'   { $$.v = $1.v; }
               ;
 
-COND_EXPRESSION : '(' E LESS_THAN E ')'     { $$.v = $2.v + $4.v + $3.v;  }
-                | '(' E GREATER_THAN E ')'  { $$.v = $2.v + $4.v + $3.v;  }
-                | '(' E EQUAL_TO E ')' { $$.v = $2.v + $4.v + $3.v; }
-                ;
+CONDITION : '(' CONDITION_EXPRESSION ')' { $$.v = $2.v;  }
+          ;
+
+CONDITION_EXPRESSION : E EQUAL_TO E               { $$.v = $1.v + $3.v + $2.v; }
+                     | E GREATER_THAN E           { $$.v = $1.v + $3.v + $2.v; }
+                     | E GREATER_THAN_OR_EQUAL E  { $$.v = $1.v + $3.v + $2.v; }
+                     | E LESS_THAN E              { $$.v = $1.v + $3.v + $2.v; }
+                     | E LESS_THAN_OR_EQUAL E     { $$.v = $1.v + $3.v + $2.v; }
+                     ;
 
 CLOSURE : '{' P '}' { $$.v = $2.v; }
+        ;
 
 CMD : CMD_LET { $$.v = $1.v; }
     | ATRIB   { $$.v = $1.v + POP; }
@@ -234,12 +267,10 @@ OBJECT : ID '.' ID              { $$.v = $1.v + GET + $3.v; }
        | ID '[' E ']' '[' E ']' { $$.v = $1.v + GET + $3.v + GET_PROP + $6.v; }
        ;
 
-E : E '+' E   { $$.v = $1.v + $3.v + "+"; }
-  | E '-' E   { $$.v = $1.v + $3.v + "-"; }
-  | E '*' E   { $$.v = $1.v + $3.v + "*"; }
-  | E '/' E   { $$.v = $1.v + $3.v + "/"; }
-  | E GREATER_THAN E   { $$.v = $1.v + $3.v + "<"; } 
-  | E '>' E   { $$.v = $1.v + $3.v + ">"; }
+E : E '+' E            { $$.v = $1.v + $3.v + "+"; }
+  | E '-' E            { $$.v = $1.v + $3.v + "-"; }
+  | E '*' E            { $$.v = $1.v + $3.v + "*"; }
+  | E '/' E            { $$.v = $1.v + $3.v + "/"; }
   | F
   ;
   
@@ -251,8 +282,8 @@ F : ID                      { $$.v = $1.v +  GET; }
   | ID '[' E ']' '[' E ']'  { $$.v = $1.v + GET + $3.v + GET_PROP + $6.v + GET_PROP; }
   | '(' E ')'               { $$.v = $2.v; }
   | FUNCTION '(' PARAMS ')' { Print( $1.v + GO_TO ); }
-  | EMPTY_ARRAY
-  | EMPTY_OBJECT
+  | NEW_ARRAY
+  | NEW_OBJECT
   ;
 
 FUNCTION : ID
