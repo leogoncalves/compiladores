@@ -199,9 +199,9 @@ WHILE_CLOSURE : '{' P '}' { $$.v = $2.v; }
               | CMD ';'   { $$.v = $1.v; }
               ;
 
-COND_EXPRESSION : '(' E GREATER_THAN E ')'     { $$.v = $2.v + $4.v + "<";  }
-                | '(' E '>' E ')'     { $$.v = $2.v + $4.v + ">";  }
-                | '(' E '=' '=' E ')' { $$.v = $2.v + $4.v + "=="; }
+COND_EXPRESSION : '(' E LESS_THAN E ')'     { $$.v = $2.v + $4.v + $3.v;  }
+                | '(' E GREATER_THAN E ')'  { $$.v = $2.v + $4.v + $3.v;  }
+                | '(' E EQUAL_TO E ')' { $$.v = $2.v + $4.v + $3.v; }
                 ;
 
 CLOSURE : '{' P '}' { $$.v = $2.v; }
