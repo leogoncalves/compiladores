@@ -170,6 +170,8 @@ void CREATE_FOR_LABELS(){
 
 Program : P {   
                 $$.v = $1.v + HALT + Functions;
+                Print(($$.v)); 
+                cout << endl;
                 Print(solveAddresses($$.v)); 
             }
         ;
@@ -258,7 +260,7 @@ CMD : CMD ';'
 
 DECLARE_FUNCTION : FUNCTION ID '(' ')' '{' P '}' { 
                     string function = createLabels("_function"), _function = ':' + function;
-                    $$.v = $2.v + _LET + $2.v + "{}" + "=" + "'&funcao'" + _function + SET_PROP + POP ;
+                    $$.v = $2.v + _LET + $2.v + "{}" + "=" + "'&funcao'" + function + _function + SET_PROP + POP ;
                     Functions = $6.v + "'&retorno'" + "@" + "~" + UNDEFINED + GET + "'&retorno'" + GET + "~";
                  }
                  | FUNCTION ID '(' PARAMS ')' '{' P '}' { 
