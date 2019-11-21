@@ -10,7 +10,7 @@ extern "C" int yylex();
 
 struct Atributos {
   vector<string> v;
-  vector<string> f;
+  int parameters = 0;
 };
 
 #define YYSTYPE Atributos
@@ -25,6 +25,9 @@ struct Atributos {
 #define CALL_FUNC "$"
 #define POP "^"
 #define HALT "."
+#define UNDEFINED "undefined"
+#define RETURN_FUNCTION "'&retorno'"
+#define RET_FUNC "~"
 
 void erro( string msg );
 void Print( string st );
@@ -51,6 +54,7 @@ string INI_FOR_CLOSURE;
 string END_FOR;
 
 vector<string> Variables;
+vector<string> Functions;
 map<string, int> VariableDeclaration;
 
 
@@ -149,7 +153,7 @@ void CREATE_FOR_LABELS(){
 
 %}
 
-%token NUM STR ID PRINT LET IF ELSE FOR WHILE
+%token NUM STR ID PRINT LET IF ELSE FOR WHILE FUNCTION RETURN
 %token NEW_ARRAY NEW_OBJECT
 %token EQUAL_TO NOT_EQUAL_TO NOT_EQUAL_VALUE_OR_TYPE EQUAL_VALUE_AND_TYPE 
 %token GREATER_THAN GREATER_THAN_OR_EQUAL LESS_THAN LESS_THAN_OR_EQUAL
@@ -164,11 +168,14 @@ void CREATE_FOR_LABELS(){
 
 %%
 
-Program : P { Print(solveAddresses($1.v)); Print(HALT); }
+Program : P {   
+                $$.v = $1.v + HALT + Functions;
+                Print(solveAddresses($$.v)); 
+            }
         ;
 
-P : CMD ';' P    { $$.v = $1.v + $3.v;}
-  | CMD ';'
+P : CMD ';' P    { $$.v = $1.v + $3.v; }
+  | CMD       { $$.v = $1.v; }   
   | CMD_IF       { $$.v = $1.v; }
   | CMD_FOR      { $$.v = $1.v; }
   | CMD_WHILE    { $$.v = $1.v; }
@@ -239,9 +246,27 @@ CONDITION_EXPRESSION : E EQUAL_TO E               { $$.v = $1.v + $3.v + $2.v; }
 CLOSURE : '{' P '}' { $$.v = $2.v; }
         ;
 
-CMD : CMD_LET { $$.v = $1.v; }
+CMD : CMD ';'
+    | CMD_LET { $$.v = $1.v; }
     | ATRIB   { $$.v = $1.v + POP; }
+    | DECLARE_FUNCTION CMD { $$.v = $2.v; }
+    | DECLARE_FUNCTION { $$.v = $1.v; }
+    | RETURN E {$$.v = $2.v;}
+    | RETURN {$$.v = $1.v;}
     ;
+
+
+DECLARE_FUNCTION : FUNCTION ID '(' ')' '{' P '}' { 
+                    string function = createLabels("_function"), _function = ':' + function;
+                    $$.v = $2.v + _LET + $2.v + "{}" + "=" + "'&funcao'" + _function + SET_PROP + POP ;
+                    Functions = $6.v + "'&retorno'" + "@" + "~" + UNDEFINED + GET + "'&retorno'" + GET + "~";
+                 }
+                 | FUNCTION ID '(' PARAMS ')' '{' P '}' { 
+                    string _function = createLabels("_function");
+                    $$.v = $2.v + GET + $2.v + "{}" + RETURN_FUNCTION + SET_PROP + POP + $4.v;
+                    Functions = $6.v + "'&retorno'" + "@" + "~" + UNDEFINED + GET + "'&retorno'" + GET + "~" + _function;
+                 }
+                 ;
 
 CMD_LET : LET ARGS  { $$.v = $2.v; }
         ;
@@ -281,16 +306,15 @@ F : ID                      { $$.v = $1.v +  GET; }
   | ID '.' ID               { $$.v = $1.v + GET + $3.v + GET_PROP; }
   | ID '[' E ']' '[' E ']'  { $$.v = $1.v + GET + $3.v + GET_PROP + $6.v + GET_PROP; }
   | '(' E ')'               { $$.v = $2.v; }
-  | FUNCTION '(' PARAMS ')' { Print( $1.v + GO_TO ); }
+  | ID '(' ')'              { $$.v = to_string($$.parameters) + $1.v + "@" + "$"; }
+  | ID '(' PARAMS ')'       { $$.v = $1.v; }
   | NEW_ARRAY
   | NEW_OBJECT
   ;
 
-FUNCTION : ID
-         ;
 
-PARAMS : PARAMS ',' PARAMS
-       | PARAM
+PARAMS : PARAM ',' PARAMS { $$.v = $1.v; $$.parameters+=1; }
+       | PARAM            { $$.v = to_string($$.parameters) + $1.v;  }
 
 PARAM : E
       ;

@@ -6,6 +6,8 @@ PRINT   ([Pp][rint])
 IF      ([Ii][Ff])
 ELSE    ([Ee][Ll][Ss][Ee])
 WHILE   while
+FUNCTION   function
+RETURN return
 FOR     for
 ID      {L}({L}|{D})*
 STR 	(\"([^\"\n]|(\\\")|\"\")+\"|\'([^\'\n]|(\\\')|\'\')+\')
@@ -26,6 +28,8 @@ COMMENT ({SIMPLE_COMMENT}|{COMPLEX_COMMENT})
 {ELSE}           { return retorna( ELSE ); }
 {WHILE}          { return retorna( WHILE ); }
 {FOR}            { return retorna( FOR   ); }
+{FUNCTION}       { return retorna( FUNCTION   ); }
+{RETURN}         { return retorna( RETURN   ); }
 {ID}             { return retorna( ID ); }
 ">" 	         { return retorna( GREATER_THAN ); }
 "<"	             { return retorna( LESS_THAN ); }
