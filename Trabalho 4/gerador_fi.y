@@ -55,6 +55,7 @@ string END_FOR;
 
 vector<string> Variables;
 vector<string> Functions;
+int function_params = 0;
 map<string, int> VariableDeclaration;
 
 
@@ -155,7 +156,7 @@ void CREATE_FOR_LABELS(){
 
 %token NUM STR ID PRINT LET IF ELSE FOR WHILE FUNCTION RETURN
 %token NEW_ARRAY NEW_OBJECT
-%token EQUAL_TO NOT_EQUAL_TO NOT_EQUAL_VALUE_OR_TYPE EQUAL_VALUE_AND_TYPE 
+%token EQUAL_TO NOT_EQUAL_TO NOT_EQUAL_VALUE_OR_TYPE EQUAL_VALUE_AND_TYPE  MOD_OPERATOR
 %token GREATER_THAN GREATER_THAN_OR_EQUAL LESS_THAN LESS_THAN_OR_EQUAL
 %token COMMENT
 
@@ -170,8 +171,8 @@ void CREATE_FOR_LABELS(){
 
 Program : P {   
                 $$.v = $1.v + HALT + Functions;
-                Print(($$.v)); 
-                cout << endl;
+                // Print(($$.v)); 
+                // cout << endl;
                 Print(solveAddresses($$.v)); 
             }
         ;
@@ -251,24 +252,34 @@ CLOSURE : '{' P '}' { $$.v = $2.v; }
 CMD : CMD ';'
     | CMD_LET { $$.v = $1.v; }
     | ATRIB   { $$.v = $1.v + POP; }
-    | DECLARE_FUNCTION CMD { $$.v = $2.v; }
+    | DECLARE_FUNCTION P { $$.v = $1.v + $2.v; }
     | DECLARE_FUNCTION { $$.v = $1.v; }
-    | RETURN E {$$.v = $2.v;}
-    | RETURN {$$.v = $1.v;}
+    | CMD_RETURN
     ;
 
+CMD_RETURN : RETURN E { $$.v = $2.v + "'&retorno'" + '@' + '~'; }
+           | RETURN NEW_OBJECT '(' ARGS ')' { $$.v = $4.v + to_string($4.parameters) + $2.v + "[@]" + '$' + "'&retorno'" + '@' + '~'; }
+           ;
 
 DECLARE_FUNCTION : FUNCTION ID '(' ')' '{' P '}' { 
                     string function = createLabels("_function"), _function = ':' + function;
-                    $$.v = $2.v + _LET + $2.v + "{}" + "=" + "'&funcao'" + function + _function + SET_PROP + POP ;
-                    Functions = $6.v + "'&retorno'" + "@" + "~" + UNDEFINED + GET + "'&retorno'" + GET + "~";
+                    $$.v = $2.v + _LET + $2.v + "{}" + "=" + "'&funcao'" + function + SET_PROP + POP ;
+                    Functions = _function + $6.v + "@" + "~" + UNDEFINED + GET + GET + "~";
                  }
                  | FUNCTION ID '(' PARAMS ')' '{' P '}' { 
-                    string _function = createLabels("_function");
-                    $$.v = $2.v + GET + $2.v + "{}" + RETURN_FUNCTION + SET_PROP + POP + $4.v;
-                    Functions = $6.v + "'&retorno'" + "@" + "~" + UNDEFINED + GET + "'&retorno'" + GET + "~" + _function;
+                    string function = createLabels("_function"), _function = ':' + function;
+                    $$.v = $2.v + _LET + $2.v + "{}" + "=" + "'&funcao'" + function + SET_PROP + POP ;
+                    Functions = _function + $4.v + $7.v + UNDEFINED + "@" + RETURN_FUNCTION + GET + "~";
                  }
                  ;
+
+CALL_FUNC : ID '(' ')' { $$.v = "0" + $1.v + "@" + "$"; }
+          | ID '(' CALL_FUNC_ARGS ')' { $$.v = $3.v + to_string($3.parameters) + $1.v + "@" + "$"; }
+          ;
+
+CALL_FUNC_ARGS : E { $$.v = $1.v; $$.parameters++; }
+                | E ',' CALL_FUNC_ARGS { $$.v = $1.v + $3.v; $$.parameters = $3.parameters + 1; }
+               ;
 
 CMD_LET : LET ARGS  { $$.v = $2.v; }
         ;
@@ -298,6 +309,7 @@ E : E '+' E            { $$.v = $1.v + $3.v + "+"; }
   | E '-' E            { $$.v = $1.v + $3.v + "-"; }
   | E '*' E            { $$.v = $1.v + $3.v + "*"; }
   | E '/' E            { $$.v = $1.v + $3.v + "/"; }
+  | E MOD_OPERATOR E   { $$.v = $1.v + $3.v + $2.v; }
   | F
   ;
   
@@ -308,17 +320,19 @@ F : ID                      { $$.v = $1.v +  GET; }
   | ID '.' ID               { $$.v = $1.v + GET + $3.v + GET_PROP; }
   | ID '[' E ']' '[' E ']'  { $$.v = $1.v + GET + $3.v + GET_PROP + $6.v + GET_PROP; }
   | '(' E ')'               { $$.v = $2.v; }
-  | ID '(' ')'              { $$.v = to_string($$.parameters) + $1.v + "@" + "$"; }
-  | ID '(' PARAMS ')'       { $$.v = $1.v; }
+//   | ID '(' ')'              { $$.v = "0" + $1.v + "@" + "$"; function_params = 0;}
+//   | ID '(' PARAMS ')'       { $$.v = $3.v + to_string($3.parameters) + $1.v + "@" + "$"; function_params = 0;}
+  | CALL_FUNC
   | NEW_ARRAY
   | NEW_OBJECT
   ;
 
 
-PARAMS : PARAM ',' PARAMS { $$.v = $1.v; $$.parameters+=1; }
-       | PARAM            { $$.v = to_string($$.parameters) + $1.v;  }
+PARAMS : PARAM ',' PARAMS { $$.v = $1.v + $3.v; }
+       | PARAM            { $$.v = $1.v;  }
+       ;
 
-PARAM : E
+PARAM : ID       { $$.v = $1.v + "&" + $1.v + "arguments" + "@" + to_string(function_params++) + "[@]" + "=" + "^";}
       ;
 
 %%

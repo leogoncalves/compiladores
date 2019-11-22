@@ -31,6 +31,7 @@ COMMENT ({SIMPLE_COMMENT}|{COMPLEX_COMMENT})
 {FUNCTION}       { return retorna( FUNCTION   ); }
 {RETURN}         { return retorna( RETURN   ); }
 {ID}             { return retorna( ID ); }
+"%" 	         { return retorna( MOD_OPERATOR ); }
 ">" 	         { return retorna( GREATER_THAN ); }
 "<"	             { return retorna( LESS_THAN ); }
 ">="	         { return retorna( GREATER_THAN_OR_EQUAL ); }
