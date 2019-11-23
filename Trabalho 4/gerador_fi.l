@@ -40,6 +40,12 @@ COMMENT ({SIMPLE_COMMENT}|{COMPLEX_COMMENT})
 "==="            { return retorna( EQUAL_VALUE_AND_TYPE ); }
 "!="             { return retorna( NOT_EQUAL_TO ); }
 "!=="            { return retorna( NOT_EQUAL_VALUE_OR_TYPE ); }
+"asm{".*"}"      {  
+                    string lexema = trim( yytext + 3, "{}" ); 
+                    yylval.v = tokeniza( lexema );
+                    coluna += strlen( yytext ); 
+                    return ASM; 
+                 }
 {NEW_ARRAY}      { return retorna( NEW_ARRAY );}
 {NEW_OBJECT}     { return retorna( NEW_OBJECT );}
 {COMMENT}        { return retorna( COMMENT ); } 

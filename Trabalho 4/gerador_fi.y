@@ -33,6 +33,11 @@ void erro( string msg );
 void Print( string st );
 void Print( vector<string> st );
 
+void trim( string &str, char* charsToRemove ) {
+   for ( unsigned int i = 0; i < strlen(charsToRemove); ++i ) {
+      str.erase( remove(str.begin(), str.end(), charsToRemove[i]), str.end() );
+   }
+}
 
 int yylex();
 void yyerror( const char* );
@@ -134,6 +139,13 @@ void duplicateVariable(string variable) {
 
 }
 
+
+void Print( vector<string> str ) {
+    for(int i = 0; i < str.size(); i++) {
+        cout << str[i] << " ";
+    }
+}
+
 void CREATE_IF_LABELS(){
     INI_IF = createLabels("ini_if"); 
     END_IF = createLabels("end_if"); 
@@ -154,7 +166,7 @@ void CREATE_FOR_LABELS(){
 
 %}
 
-%token NUM STR ID PRINT LET IF ELSE FOR WHILE FUNCTION RETURN
+%token NUM STR ID PRINT LET IF ELSE FOR WHILE FUNCTION RETURN ASM
 %token NEW_ARRAY NEW_OBJECT
 %token EQUAL_TO NOT_EQUAL_TO NOT_EQUAL_VALUE_OR_TYPE EQUAL_VALUE_AND_TYPE  MOD_OPERATOR
 %token GREATER_THAN GREATER_THAN_OR_EQUAL LESS_THAN LESS_THAN_OR_EQUAL
@@ -254,6 +266,7 @@ CMD : CMD ';'
     | ATRIB   { $$.v = $1.v + POP; }
     | DECLARE_FUNCTION P { $$.v = $1.v + $2.v; }
     | DECLARE_FUNCTION { $$.v = $1.v; }
+    | E ASM ';' 	{ $$.v = $1.v + $2.v; }
     | CMD_RETURN
     ;
 
@@ -376,11 +389,6 @@ void Print(string str) {
     cout << str << " ";
 }
 
-void Print( vector<string> str ) {
-    for(int i = 0; i < str.size(); i++) {
-        cout << str[i] << " ";
-    }
-}
 
 int main() {
   yyparse();
